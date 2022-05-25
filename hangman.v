@@ -39,12 +39,17 @@ module hangman(clk, btnR, sw, an, seg, JA, JB);
 	reg [3:0] score1, score0;
 	reg [19:0] word = 20'b11010110101101011010;
 	reg [2:0] i = 0;
-	reg [1:0][19:0] solutions = {{20'b00110011100111000011},
-								 {20'b00001000000101101011}}; // good, ball
+	reg [4:0][19:0] solutions = {{20'b00110011100111000011},
+								 {20'b00001000000101101011},
+								 {20'b10100000100101100000},
+								 {20'b00100100010100000010},
+								 {20'b00101010000101100100}}; // good, ball, ucla, eric, file
 	reg [19:0] solution;
 	reg [4:0] char;
 	reg win = 1;
 	reg complete = 0;
+	reg match = 0;
+	reg next_level = 0;
 	
 	wire segment_clk;
 	
@@ -52,43 +57,55 @@ module hangman(clk, btnR, sw, an, seg, JA, JB);
 	
 	always @(posedge send) begin
 		// if user sends
+		match = 0;
 		if (!complete) begin
 			char = sw[4:0];
 			solution = solutions[i];
 			if (solution[4:0] == char) begin
 				word[4:0] = char;
+				match = 1;
 			end
-			else if (solution[9:5] == char) begin
+			if (solution[9:5] == char) begin
 				word[9:5] = char;
+				match = 1;
 			end
-			else if (solution[14:10] == char) begin
+			if (solution[14:10] == char) begin
 				word[14:10] = char;
+				match = 1;
 			end
-			else if (solution[19:15] == char) begin
+			if (solution[19:15] == char) begin
 				word[19:15] = char;
+				match = 1;
 			end
-			else begin
-				//word = 20'b00000000010001000011;
+			if (match == 0) begin
 				cur_score = cur_score - 1;
 			end
 			
-			// if lost
+			// no more scores to deduct = lose the game
 			if (cur_score == 0) begin
 				win = 0;
+				// display lose
+				word = 20'b01011011101001000100;
 			end
 			
-			// if guess every letter correctly
-			if(win && word == solution) begin
+			if (next_level) begin
+				word = 20'b11010110101101011010;
+				next_level = 0;
 				total_score = total_score + cur_score;
-				word = 20'b00000000010001000011;
 				cur_score = 10;
 				i = i + 1;
 			end
 			
-			// if all rounds are played
-			if (i == 2) begin
+			// if guess every letter correctly in this current level
+			if(win && word == solution) begin
+				next_level = 1;
+			end
+			
+			// if all rounds are played = win the game
+			if (i == 5) begin
 				complete = 1;
-				word = 20'b00000000010001000010;
+				// display yeah
+				word = 20'b11000001000000000111;
 			end
 		end
 	end
@@ -109,9 +126,11 @@ module hangman(clk, btnR, sw, an, seg, JA, JB);
 			send = 0;
 		end
 		
+		/*
 		if(!win) begin
 			word = 20'b00000000010001000000;
 		end
+		*/
 		
 		// Display digits on the FPGA's seven-segment display
 		// digits_on takes care of blinking in adjust mode
@@ -144,7 +163,7 @@ module hangman(clk, btnR, sw, an, seg, JA, JB);
 			7: seg = 8'b10001001;  // h
 			8: seg = 8'b11111001;  // i
 			9: seg = 8'b11100001;  // j
-			11: seg = 8'b10000111; // l
+			11: seg = 8'b11000111; // l
 			13: seg = 8'b11001000; // n
 			14: seg = 8'b11000000; // o
 			15: seg = 8'b10001100; // p
@@ -152,7 +171,7 @@ module hangman(clk, btnR, sw, an, seg, JA, JB);
 			17: seg = 8'b10001111; // r
 			18: seg = 8'b10010010; // s
 			19: seg = 8'b11001110; // t
-			20: seg = 8'b11010001; // u
+			20: seg = 8'b11000001; // u
 			24: seg = 8'b10010001; // y
 			default: seg = 8'b10111111;  // -
 		endcase
@@ -205,7 +224,7 @@ module hangman(clk, btnR, sw, an, seg, JA, JB);
 			end
 			6: begin
 				JA = 8'b11111111;
-				JB = 8'b00111111;
+				JB = 8'b01111111;
 			end
 			7: begin
 				JA = 8'b00011111;
